@@ -177,9 +177,9 @@ class NginxConfiguratorTest(util.NginxTest):
 
     def test_ipv6only(self):
         # ipv6_info: (ipv6_active, ipv6only_present)
-        self.assertEquals((True, False), self.config.ipv6_info("80"))
+        self.assertEquals((True, False), self.config.ipv6_info(80))
         # Port 443 has ipv6only=on because of ipv6ssl.com vhost
-        self.assertEquals((True, True), self.config.ipv6_info("443"))
+        self.assertEquals((True, True), self.config.ipv6_info(443))
 
     def test_ipv6only_detection(self):
         self.config.version = (1, 3, 1)
@@ -519,14 +519,14 @@ class NginxConfiguratorTest(util.NginxTest):
         with mock.patch("certbot_nginx.configurator.logger") as mock_logger:
             self.config.enhance("www.example.com", "redirect")
             self.assertEqual(mock_logger.info.call_args[0][0],
-                "Traffic on port %s already redirecting to ssl in %s")
+                "Traffic on port %d already redirecting to ssl in %s")
 
     def test_redirect_dont_enhance(self):
         # Test that we don't accidentally add redirect to ssl-only block
         with mock.patch("certbot_nginx.configurator.logger") as mock_logger:
             self.config.enhance("geese.com", "redirect")
         self.assertEqual(mock_logger.info.call_args[0][0],
-                'No matching insecure server blocks listening on port %s found.')
+                'No matching insecure server blocks listening on port %d found.')
 
     def test_double_redirect(self):
         # Test that we add one redirect for each domain
@@ -803,8 +803,9 @@ class NginxConfiguratorTest(util.NginxTest):
             mock_select_vhs.return_value = []
             self.config._choose_vhosts_wildcard("*.com",
                                                 prefer_ssl=False,
-                                                no_ssl_filter_port='80')
+                                                no_ssl_filter_port=80)
             # Check that the dialog was called with only port 80 vhosts
+            # print mock_select_vhs.call_args[0][0]
             self.assertEqual(len(mock_select_vhs.call_args[0][0]), 4)
 
 

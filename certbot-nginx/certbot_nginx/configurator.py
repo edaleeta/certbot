@@ -59,7 +59,7 @@ class NginxConfigurator(common.Installer):
 
     description = "Nginx Web Server plugin - Alpha"
 
-    DEFAULT_LISTEN_PORT = '80'
+    DEFAULT_LISTEN_PORT = 80
 
     @classmethod
     def add_parser_arguments(cls, add):
@@ -214,7 +214,6 @@ class NginxConfigurator(common.Installer):
 
         # Get all vhosts whether or not they are covered by the wildcard domain
         vhosts = self.parser.get_vhosts()
-
         # Go through the vhosts, making sure that we cover all the names
         # present, but preferring the SSL or non-SSL vhosts
         filtered_vhosts = {}
@@ -305,15 +304,12 @@ class NginxConfigurator(common.Installer):
         ipv6only_present is true if ipv6only=on option exists in any server
         block ipv6 listen directive for the specified port.
 
-        :param str port: Port to check ipv6only=on directive for
+        :param int port: Port to check ipv6only=on directive for
 
         :returns: Tuple containing information if IPv6 is enabled in the global
             configuration, and existence of ipv6only directive for specified port
         :rtype: tuple of type (bool, bool)
         """
-        # port should be a string, but it's easy to mess up, so let's
-        # make sure it is one
-        port = str(port)
         vhosts = self.parser.get_vhosts()
         ipv6_active = False
         ipv6only_present = False
@@ -321,7 +317,7 @@ class NginxConfigurator(common.Installer):
             for addr in vh.addrs:
                 if addr.ipv6:
                     ipv6_active = True
-                if addr.ipv6only and addr.get_port() == port:
+                if addr.ipv6only and int(addr.get_port()) == port:
                     ipv6only_present = True
         return (ipv6_active, ipv6only_present)
 
@@ -446,7 +442,7 @@ class NginxConfigurator(common.Installer):
             hostname. Currently we just ignore this.
 
         :param str target_name: domain name
-        :param str port: port number
+        :param int port: port number
         :param bool create_if_no_match: If we should create a new vhost from default
             when there is no match found. If we can't choose a default, raise a
             MisconfigurationError.
@@ -467,12 +463,20 @@ class NginxConfigurator(common.Installer):
         return vhosts
 
     def _port_matches(self, test_port, matching_port):
+        """Checks if two ports match.
+
+        :param int test_port: port number
+        :param str matching_port: string representation of port number
+
+        :returns: true for a match, false otherwise
+        :rtype: bool
+        """
         # test_port is a number, matching is a number or "" or None
         if matching_port == "" or matching_port is None:
             # if no port is specified, Nginx defaults to listening on port 80.
             return test_port == self.DEFAULT_LISTEN_PORT
         else:
-            return test_port == matching_port
+            return test_port == int(matching_port)
 
     def _vhost_listening_on_port_no_ssl(self, vhost, port):
         found_matching_port = False
@@ -498,7 +502,7 @@ class NginxConfigurator(common.Installer):
         Rank by how well these match target_name.
 
         :param str target_name: The name to match
-        :param str port: port number as a string
+        :param int port: port number as an integer
         :returns: list of dicts containing the vhost, the matching name, and
             the numerical rank
         :rtype: list
@@ -579,7 +583,7 @@ class NginxConfigurator(common.Installer):
         # If the vhost was implicitly listening on the default Nginx port,
         # have it continue to do so.
         if len(vhost.addrs) == 0:
-            listen_block = [['\n    ', 'listen', ' ', self.DEFAULT_LISTEN_PORT]]
+            listen_block = [['\n    ', 'listen', ' ', str(self.DEFAULT_LISTEN_PORT)]]
             self.parser.add_server_directives(vhost, listen_block, replace=False)
 
         if vhost.ipv6_enabled():
@@ -675,8 +679,8 @@ class NginxConfigurator(common.Installer):
         vhosts = self.choose_redirect_vhosts(domain, port)
 
         if not vhosts:
-            logger.info("No matching insecure server blocks listening on port %s found.",
-                self.DEFAULT_LISTEN_PORT)
+            logger.info("No matching insecure server blocks listening on port %d found.",
+                port)
             return
 
         for vhost in vhosts:
@@ -718,12 +722,12 @@ class NginxConfigurator(common.Installer):
             vhost = new_vhost
 
         if self._has_certbot_redirect(vhost, domain):
-            logger.info("Traffic on port %s already redirecting to ssl in %s",
+            logger.info("Traffic on port %d already redirecting to ssl in %s",
                 self.DEFAULT_LISTEN_PORT, vhost.filep)
         else:
             # Redirect plaintextish host to https
             self._add_redirect_block(vhost, domain)
-            logger.info("Redirecting all traffic on port %s to ssl in %s",
+            logger.info("Redirecting all traffic on port %d to ssl in %s",
                 self.DEFAULT_LISTEN_PORT, vhost.filep)
 
     def _enable_ocsp_stapling(self, domain, chain_path):
